@@ -42,15 +42,25 @@ export async function record(spec: VisualSpec, options: RecordOptions): Promise<
 
     await screencast.start()
 
-    const budget = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`spec exceeded maxDurationMs (${spec.maxDurationMs}ms)`)),
-        spec.maxDurationMs),
-    )
+    // Hold the timer so it can be cleared: an uncleared one keeps the event
+    // loop alive for the rest of the budget after the take is already done,
+    // which across four beats is minutes of a pipeline run spent idling.
+    let watchdog: NodeJS.Timeout | undefined
+    const budget = new Promise<never>((_, reject) => {
+      watchdog = setTimeout(
+        () => reject(new Error(`spec exceeded maxDurationMs (${spec.maxDurationMs}ms)`)),
+        spec.maxDurationMs,
+      )
+    })
     const script = (async () => {
       for (const action of spec.actions) await runAction(page, action)
     })()
 
-    await Promise.race([script, budget])
+    try {
+      await Promise.race([script, budget])
+    } finally {
+      clearTimeout(watchdog)
+    }
 
     // One extra beat so the closing frame is not cut mid-tween.
     await page.waitForTimeout(250)

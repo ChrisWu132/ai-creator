@@ -12,6 +12,10 @@ const require = createRequire(import.meta.url)
 const RECORDER_OUT = 'out/verify/fixture-product.mp4'
 const PIPELINE_OUT = 'out/verify/nina-fan-hat--nina.mp4'
 
+// Run the CLIs through node's own tsx loader rather than npx: on Windows npx
+// is a .cmd, which node 22 refuses to spawn without a shell.
+const tsx = (args) => run(process.execPath, ['--import', 'tsx', ...args])
+
 function run(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { stdio: 'inherit', ...opts })
@@ -44,11 +48,11 @@ process.on('exit', shutdown)
 try {
   await new Promise((r) => setTimeout(r, 800))
   await rm('out/verify', { recursive: true, force: true })
-  await run('npx', ['tsx', 'src/cli/record.ts', 'specs/examples/fixture-product.json', '--out', 'out/verify'])
+  await tsx(['src/cli/record.ts', 'specs/examples/fixture-product.json', '--out', 'out/verify'])
 
   const recorder = await check(RECORDER_OUT, { minSeconds: 5, audio: false })
 
-  await run('npx', ['tsx', 'src/cli/make.ts', 'topics/examples/nina-fan-hat.json', '--out', 'out/verify'])
+  await tsx(['src/cli/make.ts', 'topics/examples/nina-fan-hat.json', '--out', 'out/verify'])
   const pipeline = await check(PIPELINE_OUT, { minSeconds: 8, audio: true })
 
   console.log(`\nverify ok`)
