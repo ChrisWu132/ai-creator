@@ -11,6 +11,9 @@ export interface AvatarClip {
   videoPath?: string
   /** A still card, when it does not. Either way the assembler composites it. */
   imagePath?: string
+  /** The clip carries an alpha channel, so it composites as a cut-out figure
+   *  standing on the page rather than as a rectangle with its own background. */
+  alpha?: boolean
   durationMs?: number
 }
 
@@ -189,10 +192,38 @@ export class FalAvatarProvider implements AvatarProvider {
     log.step(`${model}: rendering ${persona.id} against ${audioPath}`)
     const result = await falRun<{ video: { url: string } }>(model, input(imageUrl, audioUrl))
 
-    const videoPath = `${outPathBase}.mp4`
-    await falDownload(result.video.url, videoPath)
-    return { videoPath, durationMs: await durationMs(videoPath) }
+    const matted = await matte(result.video.url)
+    const videoPath = `${outPathBase}.mov`
+    await falDownload(matted, videoPath)
+    return { videoPath, alpha: true, durationMs: await durationMs(videoPath) }
   }
+}
+
+/**
+ * Cuts the figure out of its background.
+ *
+ * The avatar model paints whatever room the portrait was shot in, and a
+ * rectangle of someone else's room pasted onto a web page is the single
+ * loudest tell that a video was assembled. Cut out, the same clip reads as a
+ * person standing on the page.
+ *
+ * ProRes 4444 rather than the smaller VP9: fal's webm output comes back
+ * yuv420p with the transparency flattened to white, and only the ProRes
+ * container actually carries the alpha channel. It is a ~1GB intermediate for
+ * a 30s clip, deleted with the work directory.
+ */
+async function matte(videoUrl: string): Promise<string> {
+  log.step('cutting the figure out of its background')
+  const { video } = await falRun<{ video: { url: string } }>(
+    'bria/video/background-removal/v3',
+    {
+      video_url: videoUrl,
+      background_color: 'Transparent',
+      output_container_and_codec: 'mov_proresks',
+      preserve_audio: false,
+    },
+  )
+  return video.url
 }
 
 export function avatarProvider(): AvatarProvider {

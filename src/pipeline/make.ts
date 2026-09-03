@@ -87,9 +87,10 @@ export async function make(
     persona.visual.accent,
   )
 
-  // Both sit in the lower third. The camera centres its focus point in the
-  // middle of frame, so anything burned there covers the shot it belongs to.
+  // A cut-out figure stands on the page at full height in the corner; a boxed
+  // clip or a card is small and sits in it. The captions clear whichever it is.
   const overlays: Overlay[] = []
+  const captionY = avatar.alpha ? 'H-h-620' : 'H-h-340'
   let cursor = 0
   captionPaths.forEach((imagePath, i) => {
     const length = voiceovers[i]!.durationMs
@@ -97,17 +98,19 @@ export async function make(
       imagePath,
       width: 900,
       x: '(W-w)/2',
-      y: 'H-h-340',
+      y: captionY,
       fromMs: cursor,
       toMs: cursor + length,
     })
     cursor += length
   })
 
-  // A talking clip is a full portrait and gets cropped to a head; the stub card
-  // is already the right shape and must not be.
   const avatarSource = avatar.videoPath ?? avatar.imagePath
-  if (avatarSource) {
+  if (avatarSource && avatar.alpha) {
+    overlays.push({ imagePath: avatarSource, width: 380, x: '24', y: 'H-h-10' })
+  } else if (avatarSource) {
+    // An un-matted clip is a full portrait with its own background, so it gets
+    // cropped to a head and boxed; the stub card is already the right shape.
     overlays.push({
       imagePath: avatarSource,
       width: 240,

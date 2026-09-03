@@ -85,16 +85,18 @@ export class ElevenLabsTtsProvider implements TtsProvider {
 const DEFAULT_FAL_VOICE = 'Jessica'
 
 /**
- * ElevenLabs through fal. Same voices, but billed per use on the fal key that
- * already drives the avatar provider — one account instead of two, and this
- * is the path that has actually been run against the live API.
+ * ElevenLabs v3 through fal. v3 over multilingual-v2 for one reason: it honours
+ * inline audio tags — [laughs], [sighs], [pause] — and an ellipsis or a comma
+ * actually becomes a breath. Half of what makes TTS sound synthetic is the
+ * delivery being metronomic; the other half is the script being too tidy, and
+ * that half is fixed in the writing, not here.
  */
 export class FalTtsProvider implements TtsProvider {
   readonly name = 'fal-elevenlabs'
 
   async speak(text: string, persona: Persona, outPath: string): Promise<Voiceover> {
     const { audio } = await falRun<{ audio: { url: string } }>(
-      'fal-ai/elevenlabs/tts/multilingual-v2',
+      'fal-ai/elevenlabs/tts/eleven-v3',
       {
         text,
         voice: persona.providers.falVoice ?? DEFAULT_FAL_VOICE,

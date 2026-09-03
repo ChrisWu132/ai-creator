@@ -2,7 +2,7 @@
   "beats": [
     {
       "role": "hook",
-      "vo": "This hat has a fan that only spins in direct sunlight. So it stops the second you step into shade.",
+      "vo": "Okay, this hat has a fan on it. And it only spins in direct sunlight... so the second you step into shade, it just stops.",
       "caption": "The fan only spins in direct sunlight.",
       "visual": {
         "actions": [
@@ -14,7 +14,7 @@
     },
     {
       "role": "body",
-      "vo": "Twenty-nine dollars. It was sixty.",
+      "vo": "Twenty-nine bucks. It was sixty.",
       "caption": "$28.99, down from $59.99",
       "visual": {
         "actions": [
@@ -26,7 +26,7 @@
     },
     {
       "role": "body",
-      "vo": "The listing admits it's not recommended above eighty-eight degrees. Which is when you'd want a fan.",
+      "vo": "And down here it says — not recommended above eighty-eight degrees. Which is, you know. The exact temperature you'd want a fan.",
       "caption": "Not recommended above 88°F",
       "visual": {
         "actions": [
@@ -37,7 +37,7 @@
     },
     {
       "role": "payoff",
-      "vo": "My favorite review just says: it does not cool you, it reminds you that you are hot. Three thousand people bought it anyway.",
+      "vo": "[laughs] My favourite review just says: it does not cool you, it reminds you that you are hot. Three thousand people bought it anyway.",
       "caption": "“It does not cool you. It reminds you that you are hot.”",
       "visual": {
         "actions": [

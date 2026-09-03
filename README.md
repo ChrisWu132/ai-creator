@@ -46,6 +46,25 @@ only the fal path has been run against a live API.
 | voiceover | ElevenLabs, direct (`ELEVENLABS_API_KEY`) or via `FAL_KEY` | silence of the length the line takes to say |
 | avatar | `FAL_KEY` + `AVATAR_TIER`, else HeyGen (`HEYGEN_API_KEY`) | a persona card in the same corner, same footprint |
 
+### Not looking assembled
+
+Three things separate a clip that reads as a person from one that reads as
+stock footage pasted on a page, and none of them is lip-sync quality:
+
+- **Cut the figure out.** The avatar model paints whatever room the portrait
+  was shot in, and a rectangle of someone else's room dropped onto a web page
+  is the loudest tell there is. Every clip goes through matting, so the creator
+  stands on the page instead of sitting in a box.
+- **Shoot the portrait like a phone photo.** A studio headshot — even lighting,
+  perfect symmetry, retouched skin, dead-centre framing — reads as synthetic
+  before the mouth even moves. The portraits here are framed as front-camera
+  selfies in a real room with uneven window light.
+- **Write the way people talk.** Half of what makes TTS sound like TTS is the
+  script: four grammatical, evenly-weighted sentences will sound synthetic
+  through any engine. Fragments, a self-interruption, a "you know", an ellipsis
+  that becomes a real breath. The voice is Eleven v3, which honours inline tags
+  like `[laughs]` and `[sighs]` — but the tags are the smaller half.
+
 `AVATAR_TIER` picks how much the face moves, and it is a 15× price difference:
 `draft` (default) is SadTalker at roughly $0.05 a video — the mouth is in sync
 but the head barely moves, which is fine while you are iterating on hooks.
