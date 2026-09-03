@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import Anthropic from '@anthropic-ai/sdk'
 import type { Persona, Topic, Script, BeatInput } from '../types.js'
 import { script as scriptSchema } from '../types.js'
@@ -217,7 +219,47 @@ export class AnthropicScriptProvider implements ScriptProvider {
   }
 }
 
-export function scriptProvider(): ScriptProvider {
+/** Where an authored script lives, if someone wrote one for this topic. */
+export function authoredScriptPath(topicPath: string): string {
+  return topicPath.replace(/\.json$/, '.script.json')
+}
+
+/**
+ * A script somebody wrote by hand, next to its topic. Beats every generator
+ * when the line matters — a launch video, a control in an A/B, a hook you
+ * already know works — and it is how you fix one bad beat without re-rolling
+ * the other three.
+ */
+export class AuthoredScriptProvider implements ScriptProvider {
+  readonly name = 'authored'
+
+  constructor(private readonly path: string) {}
+
+  async generate(persona: Persona, topic: Topic): Promise<Script> {
+    const authored = JSON.parse(await readFile(this.path, 'utf8')) as {
+      beats: BeatInput[]
+      postCaption: string
+      hashtags?: string[]
+    }
+    return scriptSchema.parse({
+      id: `${topic.id}--${persona.id}`,
+      personaId: persona.id,
+      topicId: topic.id,
+      beats: authored.beats,
+      postCaption: authored.postCaption,
+      hashtags: authored.hashtags ?? [],
+    })
+  }
+}
+
+export function scriptProvider(topicPath?: string): ScriptProvider {
+  if (topicPath) {
+    const authored = authoredScriptPath(topicPath)
+    if (existsSync(authored)) {
+      log.info(`using the authored script at ${authored}`)
+      return new AuthoredScriptProvider(authored)
+    }
+  }
   if (process.env.ANTHROPIC_API_KEY) return new AnthropicScriptProvider()
   log.warn('no ANTHROPIC_API_KEY — using the stub script provider (formulaic lines)')
   return new StubScriptProvider()

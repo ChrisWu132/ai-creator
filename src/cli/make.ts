@@ -38,7 +38,7 @@ async function main(): Promise<void> {
       JSON.parse(await readFile(join(personaDir, `${topic.personaId}.json`), 'utf8')),
     )
     try {
-      await make(persona, topic, { outDir, keepWork })
+      await make(persona, topic, { outDir, keepWork, topicPath })
     } catch (err) {
       log.error(`${topic.id}: ${(err as Error).message}`)
       failures.push(topic.id)

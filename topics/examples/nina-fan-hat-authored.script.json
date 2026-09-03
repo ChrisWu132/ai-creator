@@ -1,0 +1,54 @@
+{
+  "beats": [
+    {
+      "role": "hook",
+      "vo": "This hat has a fan that only spins in direct sunlight. So it stops the second you step into shade.",
+      "caption": "The fan only spins in direct sunlight.",
+      "visual": {
+        "actions": [
+          { "kind": "wait", "ms": 900, "comment": "hero frame — let the object land" },
+          { "kind": "scrollTo", "selector": "#bullets li:nth-of-type(2)", "align": "center", "durationMs": 900 },
+          { "kind": "highlight", "selector": "#bullets li:nth-of-type(2)", "style": "box", "holdMs": 1600 }
+        ]
+      }
+    },
+    {
+      "role": "body",
+      "vo": "Twenty-nine dollars. It was sixty.",
+      "caption": "$28.99, down from $59.99",
+      "visual": {
+        "actions": [
+          { "kind": "scrollTo", "selector": "#price", "align": "center", "durationMs": 700 },
+          { "kind": "zoom", "selector": "#price", "fit": 0.6, "durationMs": 600, "holdMs": 900 },
+          { "kind": "resetZoom", "durationMs": 350 }
+        ]
+      }
+    },
+    {
+      "role": "body",
+      "vo": "The listing admits it's not recommended above eighty-eight degrees. Which is when you'd want a fan.",
+      "caption": "Not recommended above 88°F",
+      "visual": {
+        "actions": [
+          { "kind": "scrollTo", "selector": "#bullets li:nth-of-type(4)", "align": "center", "durationMs": 1000 },
+          { "kind": "highlight", "selector": "#bullets li:nth-of-type(4)", "style": "spotlight", "holdMs": 2200 }
+        ]
+      }
+    },
+    {
+      "role": "payoff",
+      "vo": "My favorite review just says: it does not cool you, it reminds you that you are hot. Three thousand people bought it anyway.",
+      "caption": "“It does not cool you. It reminds you that you are hot.”",
+      "visual": {
+        "actions": [
+          { "kind": "scrollTo", "selector": "#review-2", "align": "center", "durationMs": 1100 },
+          { "kind": "zoom", "selector": "#review-2 p", "fit": 0.92, "durationMs": 700, "holdMs": 1600 },
+          { "kind": "resetZoom", "durationMs": 400 },
+          { "kind": "highlight", "selector": "#review-2", "style": "spotlight", "holdMs": 1800 }
+        ]
+      }
+    }
+  ],
+  "postCaption": "A fan that switches off the moment you find shade. Three thousand people bought it anyway. @ninafindsthings is an AI-generated creator.",
+  "hashtags": []
+}

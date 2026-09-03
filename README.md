@@ -36,19 +36,40 @@ provider has a stub, so **the pipeline runs end to end with no API keys** — th
 shape of the result is real even when the voice is silence and the avatar is a
 card.
 
+One key covers the paid half: **`FAL_KEY`** drives both the voice and the
+avatar. The vendor-specific keys are honoured when set and take precedence, but
+only the fal path has been run against a live API.
+
 | stage | with keys | without |
 | --- | --- | --- |
-| script | Claude (`ANTHROPIC_API_KEY`) | rules over the page probe — formulaic but on-topic |
-| voiceover | ElevenLabs (`ELEVENLABS_API_KEY`) | silence of the length the line takes to say |
-| avatar | HeyGen (`HEYGEN_API_KEY`) | a persona card in the same corner, same footprint |
+| script | a hand-written `<topic>.script.json`, else Claude (`ANTHROPIC_API_KEY`) | rules over the page probe — formulaic but on-topic |
+| voiceover | ElevenLabs, direct (`ELEVENLABS_API_KEY`) or via `FAL_KEY` | silence of the length the line takes to say |
+| avatar | `FAL_KEY` + `AVATAR_TIER`, else HeyGen (`HEYGEN_API_KEY`) | a persona card in the same corner, same footprint |
+
+`AVATAR_TIER` picks how much the face moves, and it is a 15× price difference:
+`draft` (default) is SadTalker at roughly $0.05 a video — the mouth is in sync
+but the head barely moves, which is fine while you are iterating on hooks.
+`final` is Kling at roughly $0.75 — head turns, blinks, real expression range.
+The difference is visible even at the 240px the corner actually uses, because
+downscaling costs you sharpness and not motion.
 
 ```bash
 npm install
+npx playwright install chromium                    # not pulled in by npm install
 npm run verify                                     # offline, covers the whole pipeline
 npm run fixtures &                                 # serve the offline test page
 npm run make -- topics/examples/nina-fan-hat.json
 npm run review                                     # writes out/videos/index.html
 ```
+
+### Writing a beat yourself
+
+Drop `<topic>.script.json` next to a topic and the pipeline uses it instead of
+a generator — `topics/examples/nina-fan-hat-authored.json` is the worked
+example. It is the same shape the model emits (`beats[]` with `vo`, `caption`
+and camera `actions`, plus `postCaption`), so you can fix one bad beat without
+re-rolling the other three, and a hook that already works can be a fixed
+control while the persona or the topic varies around it.
 
 ### Authoring vs rendering
 

@@ -59,8 +59,10 @@ Set the profile picture and bio from `npm run accounts -- assets`, which writes
 
 One app covers all three accounts.
 
-- Add the Instagram product, request `instagram_basic` and
-  `instagram_content_publish`.
+- Add the Instagram product. **The permission names depend on which login you
+  wire up, and picking the wrong pair fails late:**
+  - Instagram Login → `instagram_business_basic` + `instagram_business_content_publish`
+  - Facebook Login → `instagram_basic` + `instagram_content_publish` + `pages_read_engagement`
 - App roles → Roles → add each account as an **Instagram Tester**.
 - Accept each invite from the account itself: Settings → Website permissions →
   Tester invites.
@@ -102,9 +104,34 @@ the video itself. The personas are fictional and presented as fictional. This is
 not a compliance checkbox to optimise away — an account that gets caught passing
 a synthetic creator off as a person loses the account and the format with it.
 
-## Still placeholder
+**Since 2026-08-31 that is also a ranking rule, not only an ethics one.**
+Instagram replaced its optional "AI creator" label with a profile-level
+**AI-generated profile** label, "intended for profiles that feature an
+AI-generated person", and says accounts that should carry it and don't "may
+soon see limits to their reach" — demoted posts stop being recommended to
+non-followers in Reels and Explore. The rule targets *identity*, not tooling: a
+real person who edits with AI needs nothing.
 
-`out/profiles/*.png` are monogram cards. A real persona needs a consistent face
-across every video and its profile picture — that comes from the avatar provider
-once `providers.heygenAvatarId` is filled in, and the profile picture should be
-a still from the same character.
+Two things follow, and neither is covered by a line in the bio:
+
+- **Turn the label on in the profile settings for each account.** It is a
+  setting, not text. Do it when the account is created, before the first post.
+- **Set `is_ai_generated` on the media container** when publishing through the
+  API. It is a documented field on the REELS container alongside `media_type`
+  and `video_url`, and it is the platform-side declaration — the caption is not.
+
+This reframes what phase 1 measures. The question stops being "can a virtual
+creator get organic distribution" and becomes "can a virtual creator get
+organic distribution *while carrying the platform's AI label*". Nobody has that
+data yet; the rule is days old. That is the more useful question anyway — it is
+the only version of this that survives contact with the platform.
+
+## The profile picture
+
+`personas/portraits/<id>.jpg` is the creator's face. The same file drives every
+avatar clip and is the profile picture, so the face is identical across all 30
+videos by construction rather than by prompt. Replace the file to redesign a
+persona; do not generate a second one for the profile.
+
+`npm run accounts -- assets` still writes monogram cards to `out/profiles/` for
+anything that needs a placeholder.
