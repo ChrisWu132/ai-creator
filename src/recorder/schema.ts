@@ -101,7 +101,7 @@ export const action = z.discriminatedUnion('kind', [
 ])
 export type Action = z.infer<typeof action>
 
-export const visualSpec = z.object({
+const visualSpecShape = z.object({
   /** Stable id — becomes the output filename. */
   id: z.string().regex(/^[a-z0-9][a-z0-9._-]*$/i, 'id must be filename-safe'),
   url: z.string().url(),
@@ -117,6 +117,10 @@ export const visualSpec = z.object({
   scale: z.number().min(1).max(4).default(2.5),
   fps: z.number().int().min(15).max(60).default(30),
 
+  /** Where the camera treats as the middle of frame, as a fraction of height.
+   *  Below 0.5 leaves room at the bottom for burned-in captions. */
+  focusY: z.number().min(0.2).max(0.8).default(0.42),
+
   /** Hard stop, so a hung page can never eat the whole render budget. */
   maxDurationMs: z.number().int().positive().default(60_000),
 
@@ -131,10 +135,19 @@ export const visualSpec = z.object({
     hideSelectors: z.array(z.string()).default([]),
     /** Stop CSS animations and GIFs from adding noise to the encode. */
     freezeAnimations: z.boolean().default(true),
+    /** Append empty space below the page so elements near its end can still
+     *  be scrolled up to the focus point. */
+    scrollPadding: z.boolean().default(true),
   }).default({}),
 
   actions: z.array(action).min(1),
-}).superRefine((spec, ctx) => {
+})
+
+/** The object form, for callers that need `.partial()` — a spec under
+ *  construction, before the pipeline fills in `id` and `url`. */
+export const visualSpecBase = visualSpecShape
+
+export const visualSpec = visualSpecShape.superRefine((spec, ctx) => {
   // `.refine` on a union member would erase the discriminant, so the one
   // cross-field rule lives here instead.
   spec.actions.forEach((a, i) => {

@@ -15,6 +15,13 @@ window.__aic = (function () {
   }
 
   var zoom = { scale: 1, tx: 0, ty: 0 }
+
+  /* Where 'centred' actually is. Vertical video is always captioned, and the
+     caption sits in the lower third, so framing a subject at the true middle
+     puts it under the text. Everything that centres respects this instead. */
+  var focusY = 0.42
+
+  function focusPoint() { return window.innerHeight * focusY }
   var OVERLAY_ID = '__aic_highlight'
 
   function tween(durationMs, easingName, step) {
@@ -104,7 +111,7 @@ window.__aic = (function () {
         window.scrollX + window.innerWidth - scale * page.width,
         window.scrollX),
       ty: clampPan(
-        window.innerHeight / 2 + window.scrollY - scale * py,
+        focusPoint() + window.scrollY - scale * py,
         window.scrollY + window.innerHeight - scale * page.height,
         window.scrollY)
     }
@@ -132,13 +139,15 @@ window.__aic = (function () {
       })
     },
 
+    setFocusY: function (value) { focusY = value },
+
     scrollToSelector: function (selector, align, durationMs, easingName) {
       var el = must(selector)
       var rect = el.getBoundingClientRect()
       var top = rect.top + window.scrollY
       var y = align === 'top'
         ? top - 24
-        : top - Math.max(0, (window.innerHeight - rect.height) / 2)
+        : top + rect.height / 2 - focusPoint()
       return api.scrollToY(y, durationMs, easingName)
     },
 
@@ -168,7 +177,7 @@ window.__aic = (function () {
         py = ((r.top + r.height / 2) - zoom.ty + window.scrollY) / zoom.scale
       } else {
         px = window.scrollX + window.innerWidth / 2
-        py = window.scrollY + window.innerHeight / 2
+        py = window.scrollY + focusPoint()
       }
       var target = panFor(px, py, scale)
       var s0 = zoom.scale, x0 = zoom.tx, y0 = zoom.ty
@@ -220,6 +229,20 @@ window.__aic = (function () {
         })
       })
       return hidden
+    },
+
+    /* An element near the end of the document cannot be scrolled up to the
+       focus point — there is nothing below it to scroll. A spacer gives the
+       page somewhere to go; it lands under the caption band, so it is never
+       visible in the finished frame. */
+    addScrollPadding: function () {
+      if (document.getElementById('__aic_pad')) return 0
+      var height = Math.round(window.innerHeight * (1 - focusY) + 40)
+      var pad = document.createElement('div')
+      pad.id = '__aic_pad'
+      pad.style.cssText = 'height:' + height + 'px;width:100%;pointer-events:none'
+      document.body.appendChild(pad)
+      return height
     },
 
     freezeAnimations: function () {

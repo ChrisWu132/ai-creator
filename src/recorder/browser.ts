@@ -114,7 +114,14 @@ export async function preparePage(page: Page, spec: VisualSpec): Promise<void> {
 
   await page.evaluate(PAGE_RUNTIME)
 
+  await page.evaluate(`window.__aic.setFocusY(${spec.focusY})`)
+
   if (prepare.freezeAnimations) await page.evaluate('window.__aic.freezeAnimations()')
+
+  if (prepare.scrollPadding) {
+    const added = (await page.evaluate('window.__aic.addScrollPadding()')) as number
+    if (added) log.step(`added ${added}px of scroll padding below the page`)
+  }
 
   const pinned = (await page.evaluate('window.__aic.unstick()')) as number
   if (pinned) log.step(`unstuck ${pinned} fixed/sticky element(s)`)

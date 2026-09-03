@@ -11,9 +11,13 @@
     "record": "tsx src/cli/record.ts",
     "typecheck": "tsc --noEmit",
     "fixtures": "node scripts/serve-fixtures.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "probe": "tsx src/cli/probe.ts",
+    "make": "tsx src/cli/make.ts",
+    "review": "tsx src/cli/review.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.123.0",
     "playwright": "^1.49.0",
     "zod": "^3.23.8"
   },

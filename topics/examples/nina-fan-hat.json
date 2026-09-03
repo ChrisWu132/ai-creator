@@ -1,0 +1,14 @@
+{
+  "id": "nina-fan-hat",
+  "personaId": "nina",
+  "title": "Solar-Powered Cooling Fan Hat",
+  "url": "http://127.0.0.1:4321/product.html",
+  "source": "fixture",
+  "angle": "The fan only runs in direct sunlight, so it stops exactly when a cloud gives you shade — the product defeats itself.",
+  "facts": [
+    "$28.99, down from $59.99",
+    "3,481 ratings, 4 stars",
+    "A one-star review says it does not cool you, it reminds you that you are hot",
+    "Listing admits it is not recommended above 88F"
+  ]
+}
