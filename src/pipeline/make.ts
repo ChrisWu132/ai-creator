@@ -26,7 +26,7 @@ export interface MakeResult {
 export async function make(
   persona: Persona,
   topic: Topic,
-  options: { outDir: string; keepWork?: boolean },
+  options: { outDir: string; keepWork?: boolean; topicPath?: string },
 ): Promise<MakeResult> {
   log.reset()
   const workDir = resolve(join(options.outDir, `${topic.id}--${persona.id}.work`))
@@ -35,7 +35,7 @@ export async function make(
   log.info(`probing ${topic.url}`)
   const probe = await probePage(topic.url)
 
-  const scripts = scriptProvider()
+  const scripts = scriptProvider(options.topicPath)
   log.info(`writing script with the ${scripts.name} provider`)
   const script = await scripts.generate(persona, topic, probe)
   script.beats.forEach((beat, i) => log.step(`beat ${i} (${beat.role}): "${beat.vo}"`))
@@ -104,8 +104,18 @@ export async function make(
     cursor += length
   })
 
-  const avatarImage = avatar.imagePath ?? avatar.videoPath
-  if (avatarImage) overlays.push({ imagePath: avatarImage, width: 240, x: '48', y: 'H-h-56' })
+  // A talking clip is a full portrait and gets cropped to a head; the stub card
+  // is already the right shape and must not be.
+  const avatarSource = avatar.videoPath ?? avatar.imagePath
+  if (avatarSource) {
+    overlays.push({
+      imagePath: avatarSource,
+      width: 240,
+      cropSquare: avatar.videoPath !== undefined,
+      x: '48',
+      y: 'H-h-56',
+    })
+  }
 
   const videoPath = resolve(join(options.outDir, `${script.id}.mp4`))
   await compose({ video: brollPath, audio: audioPath, overlays, output: videoPath })

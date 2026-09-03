@@ -55,6 +55,9 @@ export interface Overlay {
    *  2x and scaled down here, which stays sharp; authoring at final size and
    *  scaling up does not. */
   width?: number
+  /** Crop to a square around the upper third before scaling. Avatar clips come
+   *  back as full portraits; the corner wants a head, not a torso. */
+  cropSquare?: boolean
   /** Omit to show for the whole video. */
   fromMs?: number
   toMs?: number
@@ -77,8 +80,14 @@ export async function compose(options: {
   let label = '0:v'
   overlays.forEach((overlay, i) => {
     let source = `${i + 1}:v`
+    const chain: string[] = []
+    if (overlay.cropSquare) chain.push(`crop='min(iw,ih)':'min(iw,ih)':0:'(ih-min(iw,ih))/3'`)
     if (overlay.width) {
-      steps.push(`[${source}]scale=${overlay.width}:-1:flags=lanczos[ov${i}]`)
+      const height = overlay.cropSquare ? overlay.width : -1
+      chain.push(`scale=${overlay.width}:${height}:flags=lanczos`)
+    }
+    if (chain.length) {
+      steps.push(`[${source}]${chain.join(',')}[ov${i}]`)
       source = `ov${i}`
     }
     const next = `v${i}`

@@ -1,6 +1,8 @@
-import { writeFile } from 'node:fs/promises'
+import { writeFile, rm } from 'node:fs/promises'
 import type { Persona } from '../types.js'
 import { silentAudio, durationMs } from '../lib/media.js'
+import { runFfmpeg } from '../lib/ffmpeg.js'
+import { falRun, falDownload } from '../lib/fal.js'
 import { log } from '../lib/log.js'
 
 export interface Voiceover {
@@ -79,9 +81,46 @@ export class ElevenLabsTtsProvider implements TtsProvider {
   }
 }
 
+/** ElevenLabs' default voice when a persona has not picked one yet. */
+const DEFAULT_FAL_VOICE = 'Jessica'
+
+/**
+ * ElevenLabs through fal. Same voices, but billed per use on the fal key that
+ * already drives the avatar provider — one account instead of two, and this
+ * is the path that has actually been run against the live API.
+ */
+export class FalTtsProvider implements TtsProvider {
+  readonly name = 'fal-elevenlabs'
+
+  async speak(text: string, persona: Persona, outPath: string): Promise<Voiceover> {
+    const { audio } = await falRun<{ audio: { url: string } }>(
+      'fal-ai/elevenlabs/tts/multilingual-v2',
+      {
+        text,
+        voice: persona.providers.falVoice ?? DEFAULT_FAL_VOICE,
+        stability: 0.4,
+        similarity_boost: 0.8,
+        speed: 1.05,
+      },
+    )
+
+    // fal returns mp3; the pipeline concatenates aac, so transcode on the way in
+    // rather than leaving a container mismatch for concat to trip over.
+    const mp3Path = `${outPath}.mp3`
+    await falDownload(audio.url, mp3Path)
+    await runFfmpeg(['-y', '-i', mp3Path, '-c:a', 'aac', '-b:a', '160k', outPath])
+    await rm(mp3Path, { force: true })
+
+    return { audioPath: outPath, durationMs: await durationMs(outPath) }
+  }
+}
+
 export function ttsProvider(): TtsProvider {
+  // Same rule as the avatar provider: an explicit vendor key wins over an
+  // ambient FAL_KEY.
   const key = process.env.ELEVENLABS_API_KEY
   if (key) return new ElevenLabsTtsProvider(key)
-  log.warn('no ELEVENLABS_API_KEY — voiceover will be silence of the right length')
+  if (process.env.FAL_KEY) return new FalTtsProvider()
+  log.warn('no FAL_KEY or ELEVENLABS_API_KEY — voiceover will be silence of the right length')
   return new StubTtsProvider()
 }

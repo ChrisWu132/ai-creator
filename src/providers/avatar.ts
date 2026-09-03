@@ -1,7 +1,9 @@
 import { writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import type { Persona } from '../types.js'
 import { renderHtmlToPng } from '../lib/render-html.js'
 import { durationMs } from '../lib/media.js'
+import { falRun, falUpload, falDownload } from '../lib/fal.js'
 import { log } from '../lib/log.js'
 
 export interface AvatarClip {
@@ -134,9 +136,76 @@ export class HeyGenAvatarProvider implements AvatarProvider {
   }
 }
 
+/**
+ * Two tiers of the same shape: a portrait plus our own audio in, a talking
+ * clip out. `draft` is roughly fifteen times cheaper and is what you want
+ * while iterating on hooks; `final` moves the head and the eyes, which is
+ * visible even scaled down to the corner, and is what ships.
+ */
+const TIERS = {
+  draft: {
+    model: 'fal-ai/sadtalker',
+    input: (image: string, audio: string) => ({
+      source_image_url: image,
+      driven_audio_url: audio,
+      face_enhancer: 'gfpgan',
+      preprocess: 'full',
+      still_mode: false,
+    }),
+  },
+  final: {
+    model: 'fal-ai/kling-video/ai-avatar/v2/standard',
+    input: (image: string, audio: string) => ({ image_url: image, audio_url: audio }),
+  },
+} as const
+
+export type AvatarTier = keyof typeof TIERS
+
+export class FalAvatarProvider implements AvatarProvider {
+  readonly name: string
+
+  constructor(private readonly tier: AvatarTier) {
+    this.name = `fal-${tier}`
+  }
+
+  async render(persona: Persona, audioPath: string, outPathBase: string): Promise<AvatarClip> {
+    const portrait = persona.providers.portrait
+    if (!portrait) {
+      throw new Error(
+        `persona ${persona.id} has no providers.portrait — point it at the face that is this ` +
+        'creator, e.g. "personas/portraits/nina.jpg"',
+      )
+    }
+
+    // fal takes URLs, so both halves go to storage first. The portrait is
+    // re-uploaded per run rather than cached: it is ~500KB and a stale URL
+    // would fail much later, inside the model.
+    const [imageUrl, audioUrl] = await Promise.all([
+      falUpload(resolve(portrait)),
+      falUpload(resolve(audioPath)),
+    ])
+
+    const { model, input } = TIERS[this.tier]
+    log.step(`${model}: rendering ${persona.id} against ${audioPath}`)
+    const result = await falRun<{ video: { url: string } }>(model, input(imageUrl, audioUrl))
+
+    const videoPath = `${outPathBase}.mp4`
+    await falDownload(result.video.url, videoPath)
+    return { videoPath, durationMs: await durationMs(videoPath) }
+  }
+}
+
 export function avatarProvider(): AvatarProvider {
-  const key = process.env.HEYGEN_API_KEY
-  if (key) return new HeyGenAvatarProvider(key)
-  log.warn('no HEYGEN_API_KEY — compositing a persona card instead of a talking head')
+  // A vendor key is an explicit choice and wins; FAL_KEY is often just present
+  // in the environment for something else, so it is the default, not an
+  // override.
+  const heygen = process.env.HEYGEN_API_KEY
+  if (heygen) return new HeyGenAvatarProvider(heygen)
+  if (process.env.FAL_KEY) {
+    const tier = process.env.AVATAR_TIER === 'final' ? 'final' : 'draft'
+    if (tier === 'draft') log.warn('AVATAR_TIER is draft — cheap and stiff; set it to final to ship')
+    return new FalAvatarProvider(tier)
+  }
+  log.warn('no FAL_KEY or HEYGEN_API_KEY — compositing a persona card instead of a talking head')
   return new StubAvatarProvider()
 }

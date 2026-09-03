@@ -26,7 +26,15 @@ export const persona = z.object({
   /** Provider-side voice/avatar ids, filled in once accounts exist. */
   providers: z.object({
     heygenAvatarId: z.string().optional(),
+    /** An ElevenLabs voice *id*, for the direct ElevenLabs and HeyGen paths. */
     elevenVoiceId: z.string().optional(),
+    /** An ElevenLabs voice *name* — fal takes the display name, not the id, so
+     *  the two are not interchangeable and do not share a field. */
+    falVoice: z.string().optional(),
+    /** Repo-relative portrait. This one image is the creator's identity: it
+     *  drives every avatar clip and is the profile picture, so the face stays
+     *  the same across all 30 videos by construction rather than by prompt. */
+    portrait: z.string().optional(),
   }).default({}),
 })
 export type Persona = z.infer<typeof persona>
