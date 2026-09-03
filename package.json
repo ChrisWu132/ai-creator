@@ -14,7 +14,8 @@
     "verify": "node scripts/verify.mjs",
     "probe": "tsx src/cli/probe.ts",
     "make": "tsx src/cli/make.ts",
-    "review": "tsx src/cli/review.ts"
+    "review": "tsx src/cli/review.ts",
+    "accounts": "tsx src/cli/accounts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

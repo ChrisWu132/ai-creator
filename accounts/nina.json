@@ -1,0 +1,11 @@
+{
+  "personaId": "nina",
+  "handle": "@ninafindsthings",
+  "instagram": {
+    "accountType": "personal",
+    "testerRoleAccepted": false
+  },
+  "tiktok": {
+    "contentPostingAudited": false
+  }
+}

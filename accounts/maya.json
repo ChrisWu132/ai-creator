@@ -1,0 +1,11 @@
+{
+  "personaId": "maya",
+  "handle": "@mayaexploresla",
+  "instagram": {
+    "accountType": "personal",
+    "testerRoleAccepted": false
+  },
+  "tiktok": {
+    "contentPostingAudited": false
+  }
+}

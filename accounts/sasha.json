@@ -1,0 +1,11 @@
+{
+  "personaId": "sasha",
+  "handle": "@sashatestsstuff",
+  "instagram": {
+    "accountType": "personal",
+    "testerRoleAccepted": false
+  },
+  "tiktok": {
+    "contentPostingAudited": false
+  }
+}
