@@ -1,0 +1,90 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solar-Powered Desk Fan Hat — WeirdMart</title>
+<style>
+  :root { --ink:#111; --muted:#6b7280; --line:#e5e7eb; --accent:#c7511f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--ink); }
+  header { position:sticky; top:0; background:#232f3e; color:#fff; padding:10px 14px;
+           display:flex; gap:10px; align-items:center; z-index:10; }
+  header .logo { font-weight:800; letter-spacing:-.3px; }
+  header .search { flex:1; background:#fff; border-radius:6px; padding:7px 10px; color:#9ca3af; font-size:13px; }
+  main { padding:14px; }
+  .gallery { background:#f3f4f6; border-radius:10px; height:300px; display:grid; place-items:center;
+             font-size:96px; margin-bottom:14px; }
+  h1 { font-size:21px; line-height:1.25; margin:0 0 6px; font-weight:600; }
+  .brand { color:#007185; font-size:13px; margin-bottom:8px; }
+  .stars { color:#de7921; font-size:15px; }
+  .review-count { color:#007185; font-size:13px; }
+  .rating-row { display:flex; gap:8px; align-items:center; padding-bottom:12px;
+                border-bottom:1px solid var(--line); margin-bottom:12px; }
+  #price { font-size:34px; font-weight:600; color:var(--accent); letter-spacing:-1px; }
+  .price-row { display:flex; align-items:baseline; gap:8px; margin-bottom:4px; }
+  .strike { color:var(--muted); text-decoration:line-through; font-size:15px; }
+  .ship { color:#007600; font-size:13px; margin-bottom:16px; }
+  .buy { background:#ffd814; border:none; border-radius:999px; padding:12px;
+         width:100%; font-size:15px; font-weight:600; margin-bottom:10px; }
+  h2 { font-size:17px; margin:26px 0 10px; }
+  ul { padding-left:18px; margin:0; }
+  li { margin-bottom:8px; }
+  .review { border-top:1px solid var(--line); padding:14px 0; }
+  .review .who { font-weight:600; font-size:13px; margin-bottom:2px; }
+  .review .title { font-weight:600; margin:4px 0; }
+  .review p { margin:0; color:#374151; }
+  footer { background:#232f3e; color:#9ca3af; padding:40px 14px; text-align:center; font-size:12px; }
+</style>
+
+<header>
+  <span class="logo">weirdmart</span>
+  <span class="search">solar fan hat</span>
+</header>
+
+<main>
+  <div class="gallery">🧢</div>
+
+  <div class="brand">Visit the NOVELTECH Store</div>
+  <h1 id="title">Solar-Powered Cooling Fan Hat — Hands-Free Head Breeze, No Batteries Ever</h1>
+
+  <div class="rating-row">
+    <span class="stars">★★★★☆</span>
+    <span class="review-count" id="reviews">3,481 ratings</span>
+  </div>
+
+  <div class="price-row">
+    <span id="price">$28.99</span>
+    <span class="strike">$59.99</span>
+  </div>
+  <div class="ship">FREE delivery Tuesday · Only 4 left in stock</div>
+  <button class="buy">Add to Cart</button>
+
+  <h2>About this item</h2>
+  <ul id="bullets">
+    <li>Solar panel on the brim spins the fan in direct sunlight — zero batteries, zero charging.</li>
+    <li>Fan stops working the moment a cloud passes, which is when you need it.</li>
+    <li>Adjustable strap fits head sizes 21"–24".</li>
+    <li>Not waterproof. Not wind resistant. Not recommended above 88°F.</li>
+  </ul>
+
+  <h2>Top reviews</h2>
+  <div class="review" id="review-1">
+    <div class="who">Denise R.</div>
+    <span class="stars">★★★★★</span>
+    <div class="title">Bought it as a joke. Wear it daily.</div>
+    <p>My neighbors have stopped making eye contact with me and honestly the breeze is worth it.</p>
+  </div>
+  <div class="review" id="review-2">
+    <div class="who">Marcus T.</div>
+    <span class="stars">★☆☆☆☆</span>
+    <div class="title">The fan is 2 inches from my forehead</div>
+    <p>It does not cool you. It reminds you that you are hot. There is a difference.</p>
+  </div>
+  <div class="review" id="review-3">
+    <div class="who">Anonymous</div>
+    <span class="stars">★★★★☆</span>
+    <div class="title">Works exactly as described, which is the problem</div>
+    <p>Wore it to a wedding. Was asked to remove it before the vows. Four stars.</p>
+  </div>
+</main>
+
+<footer>WeirdMart — a fixture page for recorder tests. Not a real store.</footer>

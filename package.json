@@ -1,0 +1,26 @@
+{
+  "name": "ai-creator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Autonomous system that creates, tests and scales virtual creators. Phase 1: web-page B-roll recorder.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "record": "tsx src/cli/record.ts",
+    "typecheck": "tsc --noEmit",
+    "fixtures": "node scripts/serve-fixtures.mjs",
+    "verify": "node scripts/verify.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "ffmpeg-static": "^5.2.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

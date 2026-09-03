@@ -1,0 +1,14 @@
+{
+  "id": "la-atlas-obscura",
+  "url": "https://www.atlasobscura.com/things-to-do/los-angeles-california",
+  "vo": "There are eleven places in LA that should not legally exist.",
+  "prepare": { "settleMs": 2000 },
+  "actions": [
+    { "kind": "waitFor", "selector": "h1" },
+    { "kind": "wait", "ms": 700 },
+    { "kind": "zoom", "selector": "h1", "fit": 0.85, "durationMs": 700, "holdMs": 1100 },
+    { "kind": "resetZoom", "durationMs": 400 },
+    { "kind": "scrollBy", "dy": 1200, "durationMs": 2600, "easing": "linear", "comment": "the scan" },
+    { "kind": "wait", "ms": 800 }
+  ]
+}

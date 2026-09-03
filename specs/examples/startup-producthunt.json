@@ -1,0 +1,13 @@
+{
+  "id": "startup-producthunt",
+  "url": "https://www.producthunt.com/",
+  "vo": "Four of today's top five launches are the same product.",
+  "prepare": { "settleMs": 2500 },
+  "actions": [
+    { "kind": "wait", "ms": 900 },
+    { "kind": "scrollBy", "dy": 700, "durationMs": 1800, "easing": "easeOut" },
+    { "kind": "wait", "ms": 1000, "comment": "let the viewer read the list" },
+    { "kind": "scrollBy", "dy": 700, "durationMs": 1800, "easing": "linear" },
+    { "kind": "wait", "ms": 900 }
+  ]
+}

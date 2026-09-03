@@ -1,0 +1,19 @@
+{
+  "id": "product-amazon",
+  "url": "https://www.amazon.com/dp/B08N5WRWNW",
+  "vo": "Amazon somehow sells this for twenty nine dollars.",
+  "prepare": {
+    "settleMs": 1800,
+    "hideSelectors": ["#nav-main", "#navbar-backup-backup", "#rhf", "[data-cel-widget='desktop-topSlot']"]
+  },
+  "actions": [
+    { "kind": "waitFor", "selector": "#productTitle" },
+    { "kind": "wait", "ms": 800, "comment": "hero shot — this frame carries the hook" },
+    { "kind": "zoom", "selector": "#productTitle", "fit": 0.9, "durationMs": 700, "holdMs": 1200 },
+    { "kind": "resetZoom", "durationMs": 400 },
+    { "kind": "highlight", "selector": ".a-price", "style": "spotlight", "holdMs": 1100 },
+    { "kind": "scrollTo", "selector": "#feature-bullets", "align": "center", "durationMs": 1200 },
+    { "kind": "wait", "ms": 900 },
+    { "kind": "scrollBy", "dy": 1400, "durationMs": 2400, "easing": "linear", "comment": "down to reviews" }
+  ]
+}

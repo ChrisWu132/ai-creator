@@ -1,0 +1,65 @@
+{
+  "id": "fixture-product",
+  "url": "http://127.0.0.1:4321/product.html",
+  "vo": "Amazon somehow sells a hat that only cools you when you don't need it.",
+  "prepare": {
+    "settleMs": 500
+  },
+  "actions": [
+    {
+      "kind": "waitFor",
+      "selector": "#price"
+    },
+    {
+      "kind": "wait",
+      "ms": 700,
+      "comment": "hook frame \u2014 product hero on screen"
+    },
+    {
+      "kind": "highlight",
+      "selector": "#price",
+      "style": "spotlight",
+      "holdMs": 900
+    },
+    {
+      "kind": "zoom",
+      "selector": "#price",
+      "durationMs": 650,
+      "holdMs": 900,
+      "fit": 0.7
+    },
+    {
+      "kind": "resetZoom",
+      "durationMs": 400
+    },
+    {
+      "kind": "scrollTo",
+      "selector": "#bullets",
+      "align": "center",
+      "durationMs": 1100
+    },
+    {
+      "kind": "highlight",
+      "selector": "#bullets li:nth-child(2)",
+      "style": "box",
+      "holdMs": 1400
+    },
+    {
+      "kind": "scrollTo",
+      "selector": "#review-2",
+      "align": "center",
+      "durationMs": 1000
+    },
+    {
+      "kind": "zoom",
+      "selector": "#review-2 .title",
+      "durationMs": 600,
+      "holdMs": 1200,
+      "fit": 0.86
+    },
+    {
+      "kind": "resetZoom",
+      "durationMs": 400
+    }
+  ]
+}
