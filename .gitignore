@@ -27,3 +27,6 @@ dist-ssr
 out/
 .env
 tmp/
+
+# content-addressed cache for the paid steps
+.cache/

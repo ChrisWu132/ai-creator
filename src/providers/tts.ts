@@ -3,6 +3,7 @@ import type { Persona } from '../types.js'
 import { silentAudio, durationMs } from '../lib/media.js'
 import { runFfmpeg } from '../lib/ffmpeg.js'
 import { falRun, falDownload } from '../lib/fal.js'
+import { cached } from '../lib/cache.js'
 import { log } from '../lib/log.js'
 
 export interface Voiceover {
@@ -81,37 +82,64 @@ export class ElevenLabsTtsProvider implements TtsProvider {
   }
 }
 
-/** ElevenLabs' default voice when a persona has not picked one yet. */
-const DEFAULT_FAL_VOICE = 'Jessica'
-
 /**
- * ElevenLabs v3 through fal. v3 over multilingual-v2 for one reason: it honours
- * inline audio tags — [laughs], [sighs], [pause] — and an ellipsis or a comma
- * actually becomes a breath. Half of what makes TTS sound synthetic is the
- * delivery being metronomic; the other half is the script being too tidy, and
- * that half is fixed in the writing, not here.
+ * Two voice engines of the same shape, about five cents a video apart.
+ *
+ * `kokoro` is the default: five cents times thirty videos is not a number
+ * worth optimising, and what decides whether a line sounds like a person is
+ * the writing, not the engine. `eleven` is v3, which performs inline audio
+ * tags — [laughs], [sighs] — and turns an ellipsis into a real breath; set
+ * TTS_MODEL=eleven for a take that has to carry one.
  */
+const MODELS = {
+  kokoro: {
+    model: 'fal-ai/kokoro/american-english',
+    audioTags: false,
+    voice: (persona: Persona) => persona.providers.kokoroVoice ?? 'af_heart',
+    input: (text: string, voice: string) => ({ prompt: text, voice, speed: 1.05 }),
+  },
+  eleven: {
+    model: 'fal-ai/elevenlabs/tts/eleven-v3',
+    audioTags: true,
+    voice: (persona: Persona) => persona.providers.falVoice ?? 'Jessica',
+    input: (text: string, voice: string) => ({
+      text,
+      voice,
+      stability: 0.4,
+      similarity_boost: 0.8,
+      speed: 1.05,
+    }),
+  },
+} as const
+
+export type TtsModel = keyof typeof MODELS
+
+/** An engine that does not perform these reads them out loud instead. */
+const AUDIO_TAG = /\s*\[[^\]\n]{1,24}\]\s*/g
+
 export class FalTtsProvider implements TtsProvider {
-  readonly name = 'fal-elevenlabs'
+  readonly name: string
+
+  constructor(private readonly choice: TtsModel) {
+    this.name = `fal-${choice}`
+  }
 
   async speak(text: string, persona: Persona, outPath: string): Promise<Voiceover> {
-    const { audio } = await falRun<{ audio: { url: string } }>(
-      'fal-ai/elevenlabs/tts/eleven-v3',
-      {
-        text,
-        voice: persona.providers.falVoice ?? DEFAULT_FAL_VOICE,
-        stability: 0.4,
-        similarity_boost: 0.8,
-        speed: 1.05,
-      },
-    )
+    const { model, audioTags, voice, input } = MODELS[this.choice]
+    const spoken = audioTags ? text : text.replace(AUDIO_TAG, ' ').replace(/\s+/g, ' ').trim()
+    if (spoken !== text) log.step(`${this.name} cannot perform audio tags — dropping them`)
 
-    // fal returns mp3; the pipeline concatenates aac, so transcode on the way in
-    // rather than leaving a container mismatch for concat to trip over.
-    const mp3Path = `${outPath}.mp3`
-    await falDownload(audio.url, mp3Path)
-    await runFfmpeg(['-y', '-i', mp3Path, '-c:a', 'aac', '-b:a', '160k', outPath])
-    await rm(mp3Path, { force: true })
+    const voiceId = voice(persona)
+    await cached('vo', [model, voiceId, spoken], outPath, async (path) => {
+      const { audio } = await falRun<{ audio: { url: string } }>(model, input(spoken, voiceId))
+
+      // Both engines return mp3; the pipeline concatenates aac, so transcode on
+      // the way in rather than leaving a container mismatch for concat to trip on.
+      const mp3Path = `${path}.mp3`
+      await falDownload(audio.url, mp3Path)
+      await runFfmpeg(['-y', '-i', mp3Path, '-c:a', 'aac', '-b:a', '160k', path])
+      await rm(mp3Path, { force: true })
+    })
 
     return { audioPath: outPath, durationMs: await durationMs(outPath) }
   }
@@ -122,7 +150,9 @@ export function ttsProvider(): TtsProvider {
   // ambient FAL_KEY.
   const key = process.env.ELEVENLABS_API_KEY
   if (key) return new ElevenLabsTtsProvider(key)
-  if (process.env.FAL_KEY) return new FalTtsProvider()
+  if (process.env.FAL_KEY) {
+    return new FalTtsProvider(process.env.TTS_MODEL === 'eleven' ? 'eleven' : 'kokoro')
+  }
   log.warn('no FAL_KEY or ELEVENLABS_API_KEY — voiceover will be silence of the right length')
   return new StubTtsProvider()
 }

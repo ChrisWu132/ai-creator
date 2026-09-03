@@ -1,9 +1,10 @@
-import { writeFile } from 'node:fs/promises'
+import { writeFile, rm } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { Persona } from '../types.js'
 import { renderHtmlToPng } from '../lib/render-html.js'
-import { durationMs } from '../lib/media.js'
+import { durationMs, flattenOnto, chromaKey } from '../lib/media.js'
 import { falRun, falUpload, falDownload } from '../lib/fal.js'
+import { cached } from '../lib/cache.js'
 import { log } from '../lib/log.js'
 
 export interface AvatarClip {
@@ -66,11 +67,19 @@ export class StubAvatarProvider implements AvatarProvider {
 }
 
 /**
- * NOT VERIFIED AGAINST A LIVE API — written from documentation that this
- * environment cannot reach (docs.heygen.com is blocked here). Check the
- * request and polling shapes against HeyGen's current API reference before
- * the first real run; the error paths below deliberately echo raw responses
- * so a shape mismatch shows up immediately rather than as a silent null.
+ * BROKEN, not merely unverified — and it takes precedence over the fal path,
+ * so setting HEYGEN_API_KEY today gets you a worse video, not an error. Three
+ * concrete defects, all in `render`:
+ *
+ *   - `input_text` is the literal string '...', so the avatar says nothing.
+ *   - `audioPath` — the voiceover the pipeline just paid for — is discarded,
+ *     and HeyGen is asked to speak with its own voice instead.
+ *   - `voice_id` is handed an ElevenLabs id, which is not a HeyGen voice id.
+ *
+ * Fixing it means uploading our own audio as the character's audio source.
+ * Until someone does that, this is a placeholder shaped like a provider; the
+ * request and polling shapes were written from documentation this environment
+ * cannot reach (docs.heygen.com is blocked here) and are also unverified.
  */
 export class HeyGenAvatarProvider implements AvatarProvider {
   readonly name = 'heygen'
@@ -141,9 +150,10 @@ export class HeyGenAvatarProvider implements AvatarProvider {
 
 /**
  * Two tiers of the same shape: a portrait plus our own audio in, a talking
- * clip out. `draft` is roughly fifteen times cheaper and is what you want
- * while iterating on hooks; `final` moves the head and the eyes, which is
- * visible even scaled down to the corner, and is what ships.
+ * clip out. `draft` is about five cents a video against `final`'s dollar-forty
+ * for twenty-five seconds, and is what you want while iterating on hooks;
+ * `final` moves the head and the eyes, which is visible even scaled down to
+ * the corner, and is what ships.
  */
 const TIERS = {
   draft: {
@@ -180,50 +190,62 @@ export class FalAvatarProvider implements AvatarProvider {
       )
     }
 
-    // fal takes URLs, so both halves go to storage first. The portrait is
-    // re-uploaded per run rather than cached: it is ~500KB and a stale URL
-    // would fail much later, inside the model.
-    const [imageUrl, audioUrl] = await Promise.all([
-      falUpload(resolve(portrait)),
-      falUpload(resolve(audioPath)),
-    ])
-
+    const plate = await greenScreenPlate(resolve(portrait), `${outPathBase}-plate.png`)
     const { model, input } = TIERS[this.tier]
-    log.step(`${model}: rendering ${persona.id} against ${audioPath}`)
-    const result = await falRun<{ video: { url: string } }>(model, input(imageUrl, audioUrl))
 
-    const matted = await matte(result.video.url)
+    // Cache the render, not the key: the render is what costs money, and the
+    // keying thresholds are exactly the kind of thing you want to re-tune
+    // without paying for the clip again. It is also two orders of magnitude
+    // smaller on disk than the ProRes it becomes.
+    const raw = `${outPathBase}.raw.mp4`
+    await cached('avatar', [model, { file: plate }, { file: audioPath }], raw, async (path) => {
+      // fal takes URLs, not data URIs, so both halves go to storage first.
+      const [imageUrl, audioUrl] = await Promise.all([
+        falUpload(plate),
+        falUpload(resolve(audioPath)),
+      ])
+      log.step(`${model}: rendering ${persona.id} against ${audioPath}`)
+      const result = await falRun<{ video: { url: string } }>(model, input(imageUrl, audioUrl))
+      await falDownload(result.video.url, path)
+    })
+
+    // The raw render is left in the work directory rather than deleted: it is
+    // what --keep-work is for, and it is the only way to see whether the model
+    // actually kept the green before the key had its way with it.
     const videoPath = `${outPathBase}.mov`
-    await falDownload(matted, videoPath)
+    await chromaKey(raw, CHROMA, videoPath)
+
     return { videoPath, alpha: true, durationMs: await durationMs(videoPath) }
   }
 }
 
+/** Broadcast green — far enough from skin, hair and the personas' accent
+ *  colours that keying it out does not eat the subject. */
+const CHROMA = '00B140'
+
 /**
- * Cuts the figure out of its background.
+ * The creator, cut out of her room and stood on a green screen.
  *
- * The avatar model paints whatever room the portrait was shot in, and a
+ * The avatar model paints whatever background the portrait was shot in, and a
  * rectangle of someone else's room pasted onto a web page is the single
- * loudest tell that a video was assembled. Cut out, the same clip reads as a
- * person standing on the page.
- *
- * ProRes 4444 rather than the smaller VP9: fal's webm output comes back
- * yuv420p with the transparency flattened to white, and only the ProRes
- * container actually carries the alpha channel. It is a ~1GB intermediate for
- * a 30s clip, deleted with the work directory.
+ * loudest tell that a video was assembled. Cutting the *clip* out afterwards
+ * works but is billed by the second, and comes to more than the render it is
+ * matting. Cutting the *portrait* out instead is one image, once per persona,
+ * for less than two cents — the model then generates against green and the
+ * key happens locally for nothing.
  */
-async function matte(videoUrl: string): Promise<string> {
-  log.step('cutting the figure out of its background')
-  const { video } = await falRun<{ video: { url: string } }>(
-    'bria/video/background-removal/v3',
-    {
-      video_url: videoUrl,
-      background_color: 'Transparent',
-      output_container_and_codec: 'mov_proresks',
-      preserve_audio: false,
-    },
-  )
-  return video.url
+async function greenScreenPlate(portraitPath: string, outPath: string): Promise<string> {
+  return cached('plate', [{ file: portraitPath }], outPath, async (path) => {
+    log.step('cutting the portrait out of its room (once per persona, then reused)')
+    const { image } = await falRun<{ image: { url: string } }>(
+      'fal-ai/bria/background/remove',
+      { image_url: await falUpload(portraitPath) },
+    )
+    const cutout = `${path}.cutout.png`
+    await falDownload(image.url, cutout)
+    await flattenOnto(cutout, CHROMA, path)
+    await rm(cutout, { force: true })
+  })
 }
 
 export function avatarProvider(): AvatarProvider {
@@ -234,7 +256,9 @@ export function avatarProvider(): AvatarProvider {
   if (heygen) return new HeyGenAvatarProvider(heygen)
   if (process.env.FAL_KEY) {
     const tier = process.env.AVATAR_TIER === 'final' ? 'final' : 'draft'
-    if (tier === 'draft') log.warn('AVATAR_TIER is draft — cheap and stiff; set it to final to ship')
+    if (tier === 'draft') {
+      log.warn('AVATAR_TIER is draft — a 28th of the price, a fraction of the expression; set it to final to ship')
+    }
     return new FalAvatarProvider(tier)
   }
   log.warn('no FAL_KEY or HEYGEN_API_KEY — compositing a persona card instead of a talking head')

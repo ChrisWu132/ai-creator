@@ -43,7 +43,7 @@ only the fal path has been run against a live API.
 | stage | with keys | without |
 | --- | --- | --- |
 | script | a hand-written `<topic>.script.json`, else Claude (`ANTHROPIC_API_KEY`) | rules over the page probe — formulaic but on-topic |
-| voiceover | ElevenLabs, direct (`ELEVENLABS_API_KEY`) or via `FAL_KEY` | silence of the length the line takes to say |
+| voiceover | Kokoro via `FAL_KEY`, or `TTS_MODEL=eleven`, or ElevenLabs direct (`ELEVENLABS_API_KEY`) | silence of the length the line takes to say |
 | avatar | `FAL_KEY` + `AVATAR_TIER`, else HeyGen (`HEYGEN_API_KEY`) | a persona card in the same corner, same footprint |
 
 ### Not looking assembled
@@ -53,8 +53,9 @@ stock footage pasted on a page, and none of them is lip-sync quality:
 
 - **Cut the figure out.** The avatar model paints whatever room the portrait
   was shot in, and a rectangle of someone else's room dropped onto a web page
-  is the loudest tell there is. Every clip goes through matting, so the creator
-  stands on the page instead of sitting in a box.
+  is the loudest tell there is. The creator stands on the page instead of
+  sitting in a box — see *the green plate* below for how, because the obvious
+  way to do it costs more than the render.
 - **Shoot the portrait like a phone photo.** A studio headshot — even lighting,
   perfect symmetry, retouched skin, dead-centre framing — reads as synthetic
   before the mouth even moves. The portraits here are framed as front-camera
@@ -62,15 +63,58 @@ stock footage pasted on a page, and none of them is lip-sync quality:
 - **Write the way people talk.** Half of what makes TTS sound like TTS is the
   script: four grammatical, evenly-weighted sentences will sound synthetic
   through any engine. Fragments, a self-interruption, a "you know", an ellipsis
-  that becomes a real breath. The voice is Eleven v3, which honours inline tags
-  like `[laughs]` and `[sighs]` — but the tags are the smaller half.
+  that becomes a real breath. `TTS_MODEL=eleven` gets you v3, which performs
+  inline tags like `[laughs]` and `[sighs]`; the default Kokoro strips them and
+  costs a fifth as much. The tags were always the smaller half.
 
-`AVATAR_TIER` picks how much the face moves, and it is a 15× price difference:
+`AVATAR_TIER` picks how much the face moves, and it is most of the bill:
 `draft` (default) is SadTalker at roughly $0.05 a video — the mouth is in sync
-but the head barely moves, which is fine while you are iterating on hooks.
-`final` is Kling at roughly $0.75 — head turns, blinks, real expression range.
-The difference is visible even at the 240px the corner actually uses, because
-downscaling costs you sharpness and not motion.
+and the head moves a little, which is fine while you are iterating on hooks.
+`final` is Kling, billed at $0.0562 a second, so about $1.40 for a 25-second
+video — head turns, blinks, real expression range. The difference survives the
+downscale into the corner, because scaling costs you sharpness and not motion.
+
+### The green plate
+
+Cutting the figure out of the *finished clip* is the obvious move and the
+expensive one: video matting is billed per second and comes to more than the
+render it is matting — on a 25-second video it was 46% of the total cost.
+
+So the cut happens once, on the still, before anything moves:
+
+```
+portrait ──▶ background removed ──▶ stood on flat green ──▶ cached forever
+   (once per persona, $0.018)                │
+                                             ▼
+                         avatar model generates against green
+                                             │
+                                             ▼
+                        ffmpeg chromakey + despill → ProRes 4444
+                                    (local, free)
+```
+
+The model preserves the background it is given, so handing it a subject on
+green gets a talking clip on green back, and keying that out is a local ffmpeg
+pass. Same cut-out figure, $37 cheaper across 30 videos.
+
+ProRes 4444 rather than the smaller VP9, because VP9 comes back `yuv420p` with
+the transparency flattened — the container has to actually carry the alpha
+channel, and only that one does.
+
+### Nothing paid twice
+
+Every paid step is a pure function of its inputs — the same portrait and the
+same audio always want the same talking clip — so each one is content-hashed
+into `.cache/` and skipped when nothing it depends on has changed.
+
+This matters more than any per-unit price. Before it existed, fixing one
+selector in one beat re-rendered the avatar and re-spoke every line: the full
+cost of a video, paid again, to change something that costs nothing. Now
+camera work, captions and assembly are free to iterate on, and `NO_CACHE=1`
+asks a non-deterministic model for a genuinely different take.
+
+A `final` video is about **$1.42** — $1.40 avatar, a cent of voice, and the
+plate amortised to nothing. Thirty of them, three personas, is **~$43**.
 
 ```bash
 npm install
@@ -201,6 +245,9 @@ images forced to decode.
 
 ## Environment notes
 
+- `FAL_KEY` drives the voice and the avatar. `AVATAR_TIER=final` ships,
+  `TTS_MODEL=eleven` buys the better voice, `NO_CACHE=1` forces a fresh take.
+  `.env.example` predates all four.
 - `CHROMIUM_PATH` — set when the environment ships a Chromium that doesn't match
   the installed Playwright's expected build. See `.env.example`.
 - `HTTPS_PROXY` / `NO_PROXY` are passed through to Chromium automatically.

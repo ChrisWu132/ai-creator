@@ -127,3 +127,49 @@ export async function concatAudio(inputs: string[], output: string): Promise<voi
   await writeFile(listPath, inputs.map((f) => `file '${f}'`).join('\n'))
   await runFfmpeg(['-y', '-f', 'concat', '-safe', '0', '-i', listPath, '-c:a', 'aac', '-b:a', '160k', output])
 }
+
+function rgb(hex: string): [number, number, number] {
+  const match = /^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+  if (!match) throw new Error(`not a six-digit hex colour: ${hex}`)
+  return [parseInt(match[1]!, 16), parseInt(match[2]!, 16), parseInt(match[3]!, 16)]
+}
+
+/**
+ * Puts a transparent cutout on a solid colour.
+ *
+ * `lutrgb` paints a copy of the frame a flat colour, which gives a backdrop of
+ * exactly the right size without anyone having to read the image's dimensions
+ * first.
+ */
+export async function flattenOnto(input: string, hex: string, output: string): Promise<void> {
+  const [r, g, b] = rgb(hex)
+  await runFfmpeg([
+    '-y', '-i', input,
+    '-filter_complex',
+    `[0]format=rgba,split[a][b];[a]lutrgb=r=${r}:g=${g}:b=${b},format=rgb24[bg];` +
+    `[bg][b]overlay=format=auto,format=rgb24`,
+    '-frames:v', '1', output,
+  ])
+}
+
+/**
+ * Turns a solid-colour background back into a real alpha channel.
+ *
+ * This is the cheap half of the cut-out: matting a *video* is billed per
+ * second and costs more than the render it is matting, but if the avatar model
+ * is handed a subject already standing on green it hands one back, and keying
+ * that out is local and free.
+ *
+ * `despill` removes the green that bounced onto hair and shoulders — without
+ * it the edge stays faintly lime against a light web page. ProRes 4444 because
+ * VP9 comes back yuv420p with the transparency flattened; it is a big
+ * intermediate, deleted with the work directory.
+ */
+export async function chromaKey(input: string, hex: string, output: string): Promise<void> {
+  await runFfmpeg([
+    '-y', '-i', input, '-an',
+    '-vf', `chromakey=0x${hex}:0.12:0.04,despill=type=green:mix=0.5:expand=0.3,format=yuva444p10le`,
+    '-c:v', 'prores_ks', '-profile:v', '4444', '-pix_fmt', 'yuva444p10le',
+    output,
+  ])
+}

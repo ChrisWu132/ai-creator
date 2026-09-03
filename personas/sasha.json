@@ -31,6 +31,7 @@
   },
   "providers": {
     "falVoice": "Brian",
+    "kokoroVoice": "am_michael",
     "portrait": "personas/portraits/sasha.jpg"
   }
 }

@@ -31,6 +31,10 @@ export const persona = z.object({
     /** An ElevenLabs voice *name* — fal takes the display name, not the id, so
      *  the two are not interchangeable and do not share a field. */
     falVoice: z.string().optional(),
+    /** A Kokoro voice, e.g. `af_jessica`. Its own field for the same reason:
+     *  every engine names its voices differently, and a persona has one voice
+     *  per engine, not one string that happens to work everywhere. */
+    kokoroVoice: z.string().optional(),
     /** Repo-relative portrait. This one image is the creator's identity: it
      *  drives every avatar clip and is the profile picture, so the face stays
      *  the same across all 30 videos by construction rather than by prompt. */
