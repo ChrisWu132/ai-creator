@@ -113,6 +113,16 @@ cost of a video, paid again, to change something that costs nothing. Now
 camera work, captions and assembly are free to iterate on, and `NO_CACHE=1`
 asks a non-deterministic model for a genuinely different take.
 
+The same idea covers a run that dies rather than one that repeats. A
+twenty-second render is several minutes of polling, and a dropped connection
+in there used to abandon a job that was already finished and already billed.
+Two things stop that now: fal calls retry the transport and only the transport
+— a refused connection is not an answer, an HTTP response is — and the avatar
+request is written to `.cache/` the moment it is submitted, so the next run
+rejoins it instead of buying a second one. Only a request fal has actually
+forgotten (404) is allowed to start a fresh job; everything else keeps the
+note, because resubmitting a live render is precisely how you pay twice.
+
 A `final` video is about **$1.42** — $1.40 avatar, a cent of voice, and the
 plate amortised to nothing. Thirty of them, three personas, is **~$43**.
 

@@ -21,6 +21,12 @@ import { log } from './log.js'
 /** Repo-root, not `out/`: the cache has to survive `--out` pointing elsewhere. */
 const CACHE_DIR = fileURLToPath(new URL('../../.cache/', import.meta.url))
 
+/** Where anything else that has to outlive a single run belongs — a provider's
+ *  record of a request it has already paid for, for instance. */
+export function cacheDir(): string {
+  return CACHE_DIR
+}
+
 /** A literal, or a file whose *contents* are part of the key. */
 export type CacheKeyPart = string | { file: string }
 
@@ -39,7 +45,9 @@ async function digest(parts: CacheKeyPart[]): Promise<string> {
  *
  * `produce` writes to the real destination rather than to the cache, so a
  * provider's own scratch files (a downloaded mp3, a raw render) stay in the
- * work directory and get cleaned up with it.
+ * work directory and get cleaned up with it. It is handed the entry's id as
+ * well as the path — a stable name for this exact piece of work, which is
+ * what a provider needs to recognise a job it already started.
  *
  * `NO_CACHE=1` forces a fresh run and replaces the entry, which is how you
  * ask a non-deterministic model for a different take of the same line.
@@ -48,10 +56,11 @@ export async function cached(
   kind: string,
   key: CacheKeyPart[],
   outPath: string,
-  produce: (outPath: string) => Promise<void>,
+  produce: (outPath: string, id: string) => Promise<void>,
 ): Promise<string> {
   await mkdir(CACHE_DIR, { recursive: true })
-  const cachePath = join(CACHE_DIR, `${kind}-${await digest(key)}${extname(outPath)}`)
+  const id = `${kind}-${await digest(key)}`
+  const cachePath = join(CACHE_DIR, `${id}${extname(outPath)}`)
 
   if (!process.env.NO_CACHE && existsSync(cachePath)) {
     log.step(`${kind}: unchanged since the last run, reusing it`)
@@ -59,7 +68,7 @@ export async function cached(
     return outPath
   }
 
-  await produce(outPath)
+  await produce(outPath, id)
   await copyFile(outPath, cachePath)
   return outPath
 }

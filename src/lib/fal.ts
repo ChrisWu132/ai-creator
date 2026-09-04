@@ -1,5 +1,7 @@
-import { readFile, writeFile } from 'node:fs/promises'
-import { extname } from 'node:path'
+import { readFile, writeFile, rm } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { extname, join } from 'node:path'
+import { cacheDir } from './cache.js'
 import { log } from './log.js'
 
 /**
@@ -96,7 +98,100 @@ interface Queued {
   response_url: string
 }
 
-export async function falRun<T>(model: string, input: unknown): Promise<T> {
+/**
+ * A note on disk saying "this job is already paid for".
+ *
+ * Retrying the transport survives a dropped connection but not a dead process:
+ * the render keeps going on fal's side and keeps being billed, while the id
+ * that could collect it dies with the run. The note is written before the
+ * first poll and removed only when the job reaches an end.
+ */
+interface Pending extends Queued {
+  model: string
+}
+
+function pendingPath(resumeKey: string): string {
+  return join(cacheDir(), `pending-${resumeKey}.json`)
+}
+
+/** The job named by a note, if there is one. Whether fal still has it is not
+ *  asked here — a forgotten request answers 200 on its status and only 404s on
+ *  its result, so the only honest test is trying to collect it. */
+async function rejoin(model: string, resumeKey: string): Promise<Queued | undefined> {
+  const path = pendingPath(resumeKey)
+  if (!existsSync(path)) return undefined
+
+  const pending = JSON.parse(await readFile(path, 'utf8')) as Pending
+  if (pending.model !== model) return undefined
+
+  log.step(`fal ${model}: rejoining ${pending.request_id}, already submitted and already billed`)
+  return pending
+}
+
+/**
+ * fal has no record of this request — there is nothing to collect and no
+ * reason not to submit a fresh one.
+ *
+ * Kept distinct from every other failure on purpose: resubmitting after a
+ * dropped connection or a slow queue is exactly how you pay for one render
+ * twice, so only this error is allowed to start a new job.
+ */
+class RequestGone extends Error {}
+
+function forgotten(status: number): boolean {
+  return status === 404 || status === 410
+}
+
+/** Waits out a submitted job and returns its result. */
+async function collect<T>(model: string, queued: Queued, resumeKey?: string): Promise<T> {
+  for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+    await new Promise((r) => setTimeout(r, POLL_MS))
+    const polled = await fetchOrRetry(queued.status_url, { headers: auth() })
+    if (!polled.ok) {
+      const detail = `fal ${model} status ${polled.status}: ${(await polled.text()).slice(0, 400)}`
+      if (forgotten(polled.status)) throw new RequestGone(detail)
+      throw new Error(detail)
+    }
+    const { status } = (await polled.json()) as { status: string }
+
+    if (status === 'COMPLETED') {
+      const result = await fetchOrRetry(queued.response_url, { headers: auth() })
+      if (!result.ok) {
+        const detail = `fal ${model} result ${result.status}: ${(await result.text()).slice(0, 600)}`
+        if (forgotten(result.status)) throw new RequestGone(detail)
+        throw new Error(detail)
+      }
+      const value = (await result.json()) as T
+      if (resumeKey) await rm(pendingPath(resumeKey), { force: true })
+      return value
+    }
+    if (status !== 'IN_QUEUE' && status !== 'IN_PROGRESS') {
+      // An ending, so there is nothing left to rejoin. The timeout below is
+      // not an ending, and that note deliberately stays.
+      if (resumeKey) await rm(pendingPath(resumeKey), { force: true })
+      throw new Error(`fal ${model} ended as ${status} (${queued.request_id})`)
+    }
+  }
+  throw new Error(`fal ${model} did not finish in ${(MAX_POLLS * POLL_MS) / 1000}s (${queued.request_id})`)
+}
+
+/**
+ * Submits a job and waits for it. Pass `resumeKey` — a stable name for this
+ * exact piece of work — and an interrupted run picks the job back up instead
+ * of paying for it a second time.
+ */
+export async function falRun<T>(model: string, input: unknown, resumeKey?: string): Promise<T> {
+  const rejoined = resumeKey ? await rejoin(model, resumeKey) : undefined
+  if (rejoined && resumeKey) {
+    try {
+      return await collect<T>(model, rejoined, resumeKey)
+    } catch (err) {
+      if (!(err instanceof RequestGone)) throw err
+      log.warn(`fal ${model}: ${rejoined.request_id} is gone — submitting a new one`)
+      await rm(pendingPath(resumeKey), { force: true })
+    }
+  }
+
   const submitted = await fetchOrRetry(`${QUEUE_BASE}/${model}`, {
     method: 'POST',
     headers: { ...auth(), 'content-type': 'application/json' },
@@ -106,30 +201,14 @@ export async function falRun<T>(model: string, input: unknown): Promise<T> {
     throw new Error(`fal ${model} ${submitted.status}: ${(await submitted.text()).slice(0, 600)}`)
   }
   const queued = (await submitted.json()) as Queued
-  // Printed before the wait, not after: if this run dies mid-poll the render
-  // is still finishing and still billed, and the id is the only way back to it.
+  // Recorded and printed before the wait, not after: from here on the render is
+  // running and billable whatever happens to this process.
   log.step(`fal ${model} queued as ${queued.request_id}`)
-
-  for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
-    await new Promise((r) => setTimeout(r, POLL_MS))
-    const polled = await fetchOrRetry(queued.status_url, { headers: auth() })
-    if (!polled.ok) {
-      throw new Error(`fal ${model} status ${polled.status}: ${(await polled.text()).slice(0, 400)}`)
-    }
-    const { status } = (await polled.json()) as { status: string }
-
-    if (status === 'COMPLETED') {
-      const result = await fetchOrRetry(queued.response_url, { headers: auth() })
-      if (!result.ok) {
-        throw new Error(`fal ${model} result ${result.status}: ${(await result.text()).slice(0, 600)}`)
-      }
-      return (await result.json()) as T
-    }
-    if (status !== 'IN_QUEUE' && status !== 'IN_PROGRESS') {
-      throw new Error(`fal ${model} ended as ${status} (${queued.request_id})`)
-    }
+  if (resumeKey) {
+    await writeFile(pendingPath(resumeKey), JSON.stringify({ ...queued, model } satisfies Pending))
   }
-  throw new Error(`fal ${model} did not finish in ${(MAX_POLLS * POLL_MS) / 1000}s (${queued.request_id})`)
+
+  return collect<T>(model, queued, resumeKey)
 }
 
 export async function falDownload(url: string, outPath: string): Promise<string> {

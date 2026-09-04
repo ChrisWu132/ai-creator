@@ -42,9 +42,7 @@
       "visual": {
         "actions": [
           { "kind": "scrollTo", "selector": "#review-2", "align": "center", "durationMs": 1100 },
-          { "kind": "zoom", "selector": "#review-2 p", "fit": 0.92, "durationMs": 700, "holdMs": 1600 },
-          { "kind": "resetZoom", "durationMs": 400 },
-          { "kind": "highlight", "selector": "#review-2", "style": "spotlight", "holdMs": 1800 }
+          { "kind": "highlight", "selector": "#review-2", "style": "spotlight", "holdMs": 3800 }
         ]
       }
     }

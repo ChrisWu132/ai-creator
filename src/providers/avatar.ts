@@ -198,14 +198,17 @@ export class FalAvatarProvider implements AvatarProvider {
     // without paying for the clip again. It is also two orders of magnitude
     // smaller on disk than the ProRes it becomes.
     const raw = `${outPathBase}.raw.mp4`
-    await cached('avatar', [model, { file: plate }, { file: audioPath }], raw, async (path) => {
+    await cached('avatar', [model, { file: plate }, { file: audioPath }], raw, async (path, id) => {
       // fal takes URLs, not data URIs, so both halves go to storage first.
       const [imageUrl, audioUrl] = await Promise.all([
         falUpload(plate),
         falUpload(resolve(audioPath)),
       ])
       log.step(`${model}: rendering ${persona.id} against ${audioPath}`)
-      const result = await falRun<{ video: { url: string } }>(model, input(imageUrl, audioUrl))
+      // The cache entry's id doubles as the resume key: this is the one call
+      // in the pipeline long enough and dear enough to be worth rejoining
+      // rather than repeating.
+      const result = await falRun<{ video: { url: string } }>(model, input(imageUrl, audioUrl), id)
       await falDownload(result.video.url, path)
     })
 
