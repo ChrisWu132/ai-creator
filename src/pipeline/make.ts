@@ -107,7 +107,12 @@ export async function make(
 
   const avatarSource = avatar.videoPath ?? avatar.imagePath
   if (avatarSource && avatar.alpha) {
-    overlays.push({ imagePath: avatarSource, width: 380, x: '24', y: 'H-h-10' })
+    // Sized for what `final` returns: Kling reframes the portrait into a bust
+    // with air around it, so the whole clip composites with no edge showing.
+    // `draft` inherits the portrait's own crop instead, and a tight selfie
+    // leaves a visible line where the photo cut through her arms — one more
+    // reason draft is for iterating on hooks, not for looking at.
+    overlays.push({ imagePath: avatarSource, width: 560, x: '24', y: 'H-h' })
   } else if (avatarSource) {
     // An un-matted clip is a full portrait with its own background, so it gets
     // cropped to a head and boxed; the stub card is already the right shape.
